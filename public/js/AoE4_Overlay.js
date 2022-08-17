@@ -614,80 +614,74 @@ function focusToAuthorName(input) {
         return 'unknown';
     }
 }
+/**
+ * Extract the age from the image string param
+ * @param {String} string
+ * @returns
+ */
+function getAgeFromNotes(string) {
+	try {
+		var regex = /age\/age_(\d)\.png/g;
+
+		var result = regex.exec(string);
+		return result[1];
+	} catch (e) {
+		return false;
+	}
+}
 
 // Copy to clipboard for Illustrated Build Order format
 function copyForIllustratedOverlay() {
-    var rows = document.getElementById('buildTable').rows;
-    var str = ''; // output string
-    var newline = '\r\n';
+	var rows = document.getElementById("buildTable").rows;
+	var currentAge = 1;
+	// selected civilization
+	var civName = civToOverlayName(document.getElementById("civilizationName").innerHTML);
+	//Start JSON Obj
+	var jsonObj = {civilization: civName, name: focusToBuildOrderName(document.getElementById("civilizationFocus").innerHTML), author: focusToAuthorName(document.getElementById("civilizationFocus").innerHTML), source: "unknown", build_order: []};
 
-    str += '{' + newline;
+	var firstRow = true;
+	for (var currentLine of rows) {
+		if (firstRow) {
+			firstRow = false;
+			continue;
+		}
+		var timeTarget = parseFloat(currentLine.cells[0].innerHTML);
 
-    // selected civilization
-    var civ_name = civToOverlayName(document.getElementById('civilizationName').innerHTML);
-    str += '    "civilization": "' + civ_name + '",' + newline
-        // name, author, source
-    str += '    "name": "' + focusToBuildOrderName(document.getElementById("civilizationFocus").innerHTML) + '",' + newline
-    str += '    "author": "' + focusToAuthorName(document.getElementById("civilizationFocus").innerHTML) + '",' + newline
-    str += '    "source": "unknown",' + newline
+		// notes in a single line
+		var single_line_notes = convertNotesIllustrations(civName, currentLine.cells[5].innerHTML);
+		//Check if the notes contain the age up illustration and parse the age if it does
+		if (single_line_notes.indexOf("age/age_") > -1) {
+			var ageResponse = getAgeFromNotes(single_line_notes);
+			if (ageResponse) {
+				currentAge = parseInt(ageResponse);
+			}
+		}
 
-    // build order
-    str += '    "build_order": [' + newline
+		var newLineJson = {
+			age: currentAge,
+			time: timeTarget,
+			// split the single line to multiple ones, using the '. ' pattern
+			notes: single_line_notes.split(". "),
+			resources: {
+				food: resourceValue(currentLine.cells[1].innerHTML),
+				wood: resourceValue(currentLine.cells[2].innerHTML),
+				gold: resourceValue(currentLine.cells[4].innerHTML),
+				stone: resourceValue(currentLine.cells[3].innerHTML),
+			},
+		};
+		//Set Population Count and Villager Count to all of the villagers on resouces combined
+		newLineJson["villager_count"] = newLineJson["population_count"] = newLineJson.resources.food + newLineJson.resources.wood + newLineJson.resources.gold + newLineJson.resources.stone;
+		jsonObj["build_order"].push(newLineJson);
+	}
+	var str = JSON.stringify(jsonObj);
+	//console.log(str);
 
-    for (let row_id = 1; row_id < rows.length; row_id++) { // loop on the steps of the build order (one row per step)
-
-        // population and age undefined
-        str += '        {' + newline
-        str += '            "population_count": -1,' + newline
-        str += '            "villager_count": -1,' + newline
-        str += '            "age": -1,' + newline
-
-        // time option
-        var time_target = rows[row_id].cells[0].innerHTML;
-        if (time_target != "" && time_target != " ") {
-            str += '            "time": ' + time_target + ',' + newline
-        }
-
-        // resources
-        str += '            "resources": {' + newline
-        str += '                "food": ' + resourceValue(rows[row_id].cells[1].innerHTML) + ',' + newline
-        str += '                "wood": ' + resourceValue(rows[row_id].cells[2].innerHTML) + ',' + newline
-        str += '                "gold": ' + resourceValue(rows[row_id].cells[4].innerHTML) + ',' + newline
-        str += '                "stone": ' + resourceValue(rows[row_id].cells[3].innerHTML) + newline
-        str += '            },' + newline
-
-        // notes in a single line
-        var single_line_notes = convertNotesIllustrations(civ_name, rows[row_id].cells[5].innerHTML);
-
-        // split the single line to multiple ones, using the '. ' pattern
-        array_notes = single_line_notes.split('. ');
-
-        str += '            "notes": [' + newline;
-        for (var array_id = 0; array_id < array_notes.length; array_id++) {
-            str += '                "' + array_notes[array_id];
-            if (array_id < array_notes.length - 1) {
-                str += '.",' + newline;
-            } else {
-                str += '"' + newline;
-            }
-        }
-        str += '            ]' + newline;
-
-        if (row_id < rows.length - 1) {
-            str += '        },' + newline
-        } else {
-            str += '        }' + newline
-        }
-    }
-
-    // finish build order and JSON
-    str += '    ]' + newline
-    str += '}'
-
-    //console.log(str);
-    navigator.clipboard.writeText(htmlDecode(str)).then(function() {
-        //console.log('Async: Copying to clipboard was successful!');
-    }, function(err) {
-        console.error('Async: Could not copy text: ', err);
-    });
+	navigator.clipboard.writeText(htmlDecode(str)).then(
+		function () {
+			//console.log('Async: Copying to clipboard was successful!');
+		},
+		function (err) {
+			console.error("Async: Could not copy text: ", err);
+		},
+	);
 }
