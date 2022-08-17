@@ -544,7 +544,7 @@ function resourceValue(input) {
     if ((input != '') && (input != ' ')) {
 
         if ((typeof input == "string") && !isNaN(input) && !isNaN(parseFloat(input))) {
-            return input;
+            return parseFloat(input);
         } else {
             return -1;
         }
