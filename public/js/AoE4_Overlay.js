@@ -659,7 +659,7 @@ function copyForIllustratedOverlay() {
 
 		var newLineJson = {
 			age: currentAge,
-			time: timeTarget,
+			time: timeTarget.toString(),
 			// split the single line to multiple ones, using the '. ' pattern
 			notes: single_line_notes.split(". "),
 			resources: {
